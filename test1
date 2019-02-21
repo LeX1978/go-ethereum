@@ -585,133 +585,40 @@ func calcDifficultyHomestead(time uint64, parent *types.Header) *big.Int {
 func (MyAlgo *MyAlgo) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error){
 	log.Info("will Finalize the block")
-  accumulateRewards(chain.Config(), state, header, uncles)
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	b := types.NewBlock(header, txs, uncles, receipts)
 
 	return b, nil
 }
 
-func getProblemFromHeader (header *types.Header) (Problem, int64){
-	runes := []rune(header.ParentHash.String())
-	index_in_hash := string(runes[0:3])
-	index_in_decimal, _ := strconv.ParseInt(index_in_hash , 0, 64)
-	index_in_decimal = index_in_decimal % 10
-	return problems[index_in_decimal], index_in_decimal
-}
-
-func solveProblem(p Problem) (float64){
-	expression, _ := govaluate.NewEvaluableExpression(p.Equation)
-	result, _ := expression.Evaluate(nil)
-	result_in_float := result.(float64)
-	return result_in_float
-}
-
 // SealHash returns the hash of a block prior to it being sealed.
-// func (ethash *Ethash) SealHash(header *types.Header) (hash common.Hash) {
-// 	hasher := sha3.NewLegacyKeccak256()
+func (ethash *Ethash) SealHash(header *types.Header) (hash common.Hash) {
+	hasher := sha3.NewLegacyKeccak256()
 
-// 	rlp.Encode(hasher, []interface{}{
-// 		header.ParentHash,
-// 		header.UncleHash,
-// 		header.Coinbase,
-// 		header.Root,
-// 		header.TxHash,
-// 		header.ReceiptHash,
-// 		header.Bloom,
-// 		header.Difficulty,
-// 		header.Number,
-// 		header.GasLimit,
-// 		header.GasUsed,
-// 		header.Time,
-// 		header.Extra,
-// 	})
-// 	hasher.Sum(hash[:0])
-// 	return hash
-// }
-
-// // Some weird constants to avoid constant memory allocs for them.
-// var (
-// 	big8  = big.NewInt(8)
-// 	big32 = big.NewInt(32)
-// )
-
-// Seal generates a new block for the given input block with the local miner's
-// seal place on top.
-func (MyAlgo *MyAlgo) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error){
-	log.Info("will Seal the block")
-	//time.Sleep(15 * time.Second)
-	header := block.Header()
-	/*
-	runes := []rune(header.ParentHash.String())
-	index_in_hash := string(runes[0:3])
-	index_in_decimal, _ := strconv.ParseInt(index_in_hash , 0, 64)
-	index_in_decimal = index_in_decimal % 10
-	*/
-	p, index_in_decimal := getProblemFromHeader(header)
-
-	fmt.Print("hash is : ")
-	fmt.Print(header.ParentHash.String())
-	fmt.Print("problem number is : ")
-	fmt.Println(index_in_decimal)
-
-
-
-	fmt.Print("problem is : ")
-	fmt.Println(p.Equation)
-	result_in_float := solveProblem(p)
-	fmt.Print("solution is : ")
-	fmt.Println(result_in_float)
-	//problem_number := header.Hash().String()[2]
-
-	/*
-	fmt.Print("hash is : ")
-	fmt.Print(header.Hash().String())
-	fmt.Print("problem number is : ")
-	fmt.Println(index_in_decimal)
-	for _, p := range problems {
-		fmt.Print("problem is : ")
-		fmt.Println(p.Equation)
-		expression, _ := govaluate.NewEvaluableExpression(p.Equation);
-		result, _ := expression.Evaluate(nil);
-		fmt.Print("solution is : ")
-		fmt.Println(result)
-	}
-	*/
-
-
-	header.Nonce, header.MixDigest = getRequiredHeader(result_in_float)
-	return block.WithSeal(header), nil
+	rlp.Encode(hasher, []interface{}{
+		header.ParentHash,
+		header.UncleHash,
+		header.Coinbase,
+		header.Root,
+		header.TxHash,
+		header.ReceiptHash,
+		header.Bloom,
+		header.Difficulty,
+		header.Number,
+		header.GasLimit,
+		header.GasUsed,
+		header.Time,
+		header.Extra,
+	})
+	hasher.Sum(hash[:0])
+	return hash
 }
 
-func getRequiredHeader(result float64) (types.BlockNonce, common.Hash){
-	return getNonce(result), common.Hash{}
-}
-
-func getNonce(result float64) (types.BlockNonce) {
-	var i uint64 = uint64(result)
-	var n types.BlockNonce
-
-	binary.BigEndian.PutUint64(n[:], i)
-	return n
-}
-
-
-
-func rangeIn(low, hi int) int {
-
-	return low + rand.Intn(hi-low)
-}
-
-// APIs returns the RPC APIs this consensus engine provides.
-func (myAlgo *MyAlgo) APIs(chain consensus.ChainReader) []rpc.API {
-	return []rpc.API{{
-		Namespace: "myalgo",
-		Version:   "1.0",
-		Service:   &API{chain: chain, myAlgo: myAlgo},
-		Public:    false,
-	}}
-}
+// Some weird constants to avoid constant memory allocs for them.
+var (
+	big8  = big.NewInt(8)
+	big32 = big.NewInt(32)
+)
 
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
