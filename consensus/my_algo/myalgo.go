@@ -14,7 +14,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/log"
-  
+	"time"
+
 	"encoding/binary"
 	"math/rand"
 	"fmt"
@@ -326,6 +327,29 @@ func (myAlgo *MyAlgo) APIs(chain consensus.ChainReader) []rpc.API {
 		Service:   &API{chain: chain, myAlgo: myAlgo},
 		Public:    false,
 	}}
+}
+
+// SealHash returns the hash of a block prior to it being sealed.
+func (ethash *Ethash) SealHash(header *types.Header) (hash common.Hash) {
+	hasher := sha3.NewLegacyKeccak256()
+
+	rlp.Encode(hasher, []interface{}{
+		header.ParentHash,
+		header.UncleHash,
+		header.Coinbase,
+		header.Root,
+		header.TxHash,
+		header.ReceiptHash,
+		header.Bloom,
+		header.Difficulty,
+		header.Number,
+		header.GasLimit,
+		header.GasUsed,
+		header.Time,
+		header.Extra,
+	})
+	hasher.Sum(hash[:0])
+	return hash
 }
 
 // AccumulateRewards credits the coinbase of the given block with the mining
